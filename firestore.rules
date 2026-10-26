@@ -1,0 +1,167 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Secure Store Owner Role Verification:
+    // User must have role == 'store_owner' in their users doc, or be in store_owners collection, or be a designated store owner
+    function isStoreOwner() {
+      return isSignedIn() && (
+        (request.auth.token.email in ['abodas20111@gmail.com', 'fjralmazny@gmail.com']) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'store_owner') ||
+        exists(/databases/$(database)/documents/store_owners/$(request.auth.uid))
+      );
+    }
+
+    // User Profile Validation on Creation (Normal users can only create role: 'customer')
+    function isValidUserProfileCreate(data) {
+      return data.keys().hasAll(['fullName', 'email', 'uid']) &&
+             data.keys().hasOnly(['fullName', 'email', 'uid', 'role', 'createdAt']) &&
+             data.fullName is string &&
+             data.fullName.size() >= 3 &&
+             data.fullName.size() <= 100 &&
+             data.email is string &&
+             data.email.size() <= 150 &&
+             data.uid is string &&
+             data.uid == request.auth.uid &&
+             (
+               (request.auth.token.email in ['abodas20111@gmail.com', 'fjralmazny@gmail.com'] && data.role in ['store_owner', 'customer']) ||
+               (!('role' in data) || data.role == 'customer')
+             ) &&
+             (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 50));
+    }
+
+    // User Profile Validation on Update (Client CANNOT escalate or change their role to store_owner)
+    function isValidUserProfileUpdate(data) {
+      return data.keys().hasAll(['fullName', 'email', 'uid']) &&
+             data.keys().hasOnly(['fullName', 'email', 'uid', 'role', 'createdAt']) &&
+             data.fullName is string &&
+             data.fullName.size() >= 3 &&
+             data.fullName.size() <= 100 &&
+             data.email is string &&
+             data.email.size() <= 150 &&
+             data.uid is string &&
+             data.uid == request.auth.uid &&
+             (
+               (request.auth.token.email in ['abodas20111@gmail.com', 'fjralmazny@gmail.com']) ||
+               // Customers cannot change their role
+               ('role' in existing() && 'role' in data && data.role == existing().role) ||
+               (!('role' in existing()) && (!('role' in data) || data.role == 'customer'))
+             ) &&
+             (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 50));
+    }
+
+    // Customer Order Validation
+    function isValidOrder(data) {
+      return data.keys().hasAll([
+               'customerUid',
+               'customerFullName',
+               'productsOrdered',
+               'quantities',
+               'totalPrice',
+               'orderStatus',
+               'paymentStatus',
+               'createdTimestamp'
+             ]) &&
+             data.customerUid is string &&
+             data.customerUid == request.auth.uid &&
+             data.customerFullName is string &&
+             data.customerFullName.size() >= 3 &&
+             data.customerFullName.size() <= 100 &&
+             data.productsOrdered is list &&
+             data.productsOrdered.size() > 0 &&
+             data.productsOrdered.size() <= 50 &&
+             data.quantities is number &&
+             data.quantities > 0 &&
+             data.quantities <= 1000 &&
+             data.totalPrice is number &&
+             data.totalPrice >= 0 &&
+             (data.orderStatus == 'New' || data.orderStatus == 'pending') &&
+             (data.paymentStatus == 'pending' || data.paymentStatus == 'cash_on_delivery') &&
+             (!('paymentMethod' in data) || (data.paymentMethod is string && data.paymentMethod.size() <= 30)) &&
+             (!('customerEmail' in data) || (data.customerEmail is string && data.customerEmail.size() <= 150)) &&
+             data.createdTimestamp is string &&
+             data.createdTimestamp.size() <= 50;
+    }
+
+    // Product Validation
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'price', 'category', 'available']) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 200 &&
+             data.price is number && data.price >= 0 &&
+             data.available is bool &&
+             data.category is string &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 1000)) &&
+             (!('image' in data) || (data.image is string && data.image.size() <= 500)) &&
+             (!('size' in data) || (data.size is string && data.size.size() <= 50)) &&
+             (!('type' in data) || (data.type is string && data.type.size() <= 50));
+    }
+
+    // Users collection
+    // Customers can read and create their own profile as 'customer'. They cannot elevate role.
+    // Store owners can view and manage user documents.
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isStoreOwner();
+      allow list: if isStoreOwner();
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfileCreate(incoming());
+      allow update: if (isOwner(userId) && isValidId(userId) && isValidUserProfileUpdate(incoming()) && incoming().uid == existing().uid)
+                    || isStoreOwner();
+      allow delete: if false;
+    }
+
+    // Products collection (Store owner can create, update, delete products; customers can only read)
+    match /products/{productId} {
+      allow get, list: if true;
+      allow create, update: if isStoreOwner() && isValidId(productId) && isValidProduct(incoming());
+      allow delete: if isStoreOwner() && isValidId(productId);
+    }
+
+    // Orders collection (Store owner can read all, update status, and delete orders; customers can only create and read their own)
+    match /orders/{orderId} {
+      allow get: if (isSignedIn() && isValidId(orderId) && existing().customerUid == request.auth.uid) || isStoreOwner();
+      allow list: if (isSignedIn() && resource.data.customerUid == request.auth.uid) || isStoreOwner();
+      allow create: if isSignedIn() && isValidId(orderId) && isValidOrder(incoming());
+      allow update: if isStoreOwner() && isValidId(orderId) &&
+                    incoming().orderStatus in ['New', 'Accepted', 'Preparing', 'Ready', 'Completed', 'Rejected'];
+      allow delete: if isStoreOwner() && isValidId(orderId);
+    }
+
+    // Store Owners collection (Dedicated lookup for store owner UIDs)
+    match /store_owners/{ownerId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Store Owner Web Push Subscriptions and FCM Tokens
+    match /store_owner_subscriptions/{subId} {
+      allow read, write: if isStoreOwner();
+    }
+    match /store_owner_tokens/{tokenId} {
+      allow read, write: if isStoreOwner();
+    }
+  }
+}

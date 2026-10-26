@@ -1,0 +1,6 @@
+{
+  "name": "Jay’s Matcha",
+  "description": "متجر Jay’s Matcha الإلكتروني للماتشا المصنوعة بحب في أبها وخميس مشيط",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

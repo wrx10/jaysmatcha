@@ -1,0 +1,197 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with full three-part name and email",
+      "type": "object",
+      "properties": {
+        "fullName": {
+          "type": "string",
+          "description": "Full three-part name manually entered by user",
+          "minLength": 3,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "format": "email",
+          "maxLength": 150
+        },
+        "uid": {
+          "type": "string",
+          "description": "Firebase user ID",
+          "maxLength": 128
+        },
+        "role": {
+          "type": "string",
+          "description": "User role: customer or store_owner",
+          "enum": ["customer", "store_owner"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when profile was created",
+          "maxLength": 50
+        }
+      },
+      "required": ["fullName", "email", "uid"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Store beverage, milk option, or add-on details",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Product display name in Arabic",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of ingredients and taste",
+          "maxLength": 1000
+        },
+        "price": {
+          "type": "number",
+          "description": "Price in SAR (0 if free)"
+        },
+        "image": {
+          "type": "string",
+          "description": "Image URL or asset identifier",
+          "maxLength": 500
+        },
+        "available": {
+          "type": "boolean",
+          "description": "Availability status of the product"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category: drinks, milk_options, add_ons, regular, special",
+          "enum": ["drinks", "milk_options", "add_ons", "regular", "special"]
+        },
+        "size": {
+          "type": "string",
+          "description": "Drink size: regular or large",
+          "enum": ["regular", "large"]
+        },
+        "type": {
+          "type": "string",
+          "description": "Graphic drink style type",
+          "enum": ["classic", "cloudy", "mango", "strawberry"]
+        }
+      },
+      "required": ["name", "price", "available", "category"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order details",
+      "type": "object",
+      "properties": {
+        "customerUid": {
+          "type": "string",
+          "description": "Authenticated Firebase user UID",
+          "maxLength": 128
+        },
+        "customerFullName": {
+          "type": "string",
+          "description": "Customer full name from user profile",
+          "minLength": 3,
+          "maxLength": 100
+        },
+        "customerEmail": {
+          "type": "string",
+          "description": "Customer contact email",
+          "maxLength": 150
+        },
+        "productsOrdered": {
+          "type": "array",
+          "description": "List of ordered products and chosen add-ons"
+        },
+        "quantities": {
+          "type": "number",
+          "description": "Total quantity of items in the order"
+        },
+        "totalPrice": {
+          "type": "number",
+          "description": "Total order amount in SAR"
+        },
+        "orderStatus": {
+          "type": "string",
+          "description": "Status of the order",
+          "enum": ["New", "Accepted", "Preparing", "Ready", "Completed", "Rejected", "pending"]
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "Status of payment",
+          "enum": ["pending", "paid", "cash_on_delivery"]
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Selected payment method",
+          "enum": ["cash"]
+        },
+        "createdTimestamp": {
+          "type": "string",
+          "description": "ISO timestamp string when order was placed",
+          "maxLength": 50
+        }
+      },
+      "required": [
+        "customerUid",
+        "customerFullName",
+        "productsOrdered",
+        "quantities",
+        "totalPrice",
+        "orderStatus",
+        "paymentStatus",
+        "createdTimestamp"
+      ]
+    },
+    "StoreOwnerToken": {
+      "title": "StoreOwnerToken",
+      "description": "FCM registration tokens for store owner devices",
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string",
+          "description": "FCM registration token",
+          "maxLength": 500
+        },
+        "uid": {
+          "type": "string",
+          "description": "Firebase user ID of the store owner",
+          "maxLength": 128
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when token was registered or refreshed",
+          "maxLength": 50
+        },
+        "userAgent": {
+          "type": "string",
+          "description": "Device/Browser user agent string",
+          "maxLength": 500
+        }
+      },
+      "required": ["token", "uid", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document keyed by Firebase UID"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Store products collection readable by customers and managed by store owner"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders collection managed by store owner"
+    },
+    "/store_owner_tokens/{tokenId}": {
+      "schema": "StoreOwnerToken",
+      "description": "FCM tokens for push notifications restricted to store owners"
+    }
+  }
+}

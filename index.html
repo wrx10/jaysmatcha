@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jay’s Matcha</title>
+    <meta name="description" content="متجر Jay’s Matcha الإلكتروني للماتشا المصنوعة بحب في أبها وخميس مشيط" />
+    <meta property="og:title" content="Jay’s Matcha" />
+    <meta property="og:description" content="متجر Jay’s Matcha الإلكتروني للماتشا المصنوعة بحب في أبها وخميس مشيط" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Jay’s Matcha" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700&family=Marhey:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+      // Gracefully prevent preview iframe HMR WebSocket disconnect rejections from breaking the app
+      (function() {
+        var origConsoleError = console.error;
+        console.error = function() {
+          var args = Array.prototype.slice.call(arguments);
+          var str = args.join(' ');
+          if (str.indexOf('[vite]') !== -1 && (str.indexOf('websocket') !== -1 || str.indexOf('WebSocket') !== -1)) {
+            return;
+          }
+          origConsoleError.apply(console, args);
+        };
+        window.addEventListener('unhandledrejection', function (event) {
+          var reason = event.reason;
+          var msg = (reason && (reason.message || reason.stack || String(reason))) || '';
+          if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('ws:') !== -1 || msg.indexOf('wss:') !== -1) {
+            event.preventDefault();
+          }
+        });
+        window.addEventListener('error', function (event) {
+          var msg = (event.message || '') + ' ' + (event.filename || '');
+          if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('@vite/client') !== -1) {
+            event.preventDefault();
+          }
+        });
+      })();
+    </script>
+  </head>
+  <body class="bg-[#FAF7F2] text-[#334628] antialiased selection:bg-[#E8F0DC] selection:text-[#2B3B20]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
